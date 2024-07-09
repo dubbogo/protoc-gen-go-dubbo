@@ -1,1 +1,1 @@
-# protoc-gen-go-dubbo
+# [WIP] protoc-gen-go-dubbo
