@@ -152,7 +152,7 @@ func genInterfaceImpl(g *protogen.GeneratedFile, dubboGo *Dubbogo) {
 				buildRequestInvokeArgs(m), m.InvokeName))
 			g.P(fmt.Sprintf("return %s, err", util.DefaultValue(m.ReturnType)))
 			g.P("}")
-			if util.IsBasicType(m.ReturnType) {
+			if util.IsBasicType(m.ReturnType) || m.ResponseIsWrapper {
 				g.P("return *resp, nil")
 			} else {
 				g.P("return resp, nil")
@@ -214,7 +214,7 @@ func genServiceInfo(g *protogen.GeneratedFile, dubboGo *Dubbogo) {
 			g.P(fmt.Sprintf(`Name: "%s",`, m.InvokeName))
 			g.P("Type: constant.CallUnary,")
 			g.P("ReqInitFunc: func() interface{} {")
-			g.P(fmt.Sprintf("return new(%s)", m.ReturnType))
+			g.P(fmt.Sprintf("return %s", buildReqInitFunc(m)))
 			g.P("},")
 			g.P("MethodFunc: func(ctx context.Context, args []interface{}, handler interface{}) (interface{}, error) {")
 			if m.RequestExtendArgs {
@@ -264,8 +264,28 @@ func buildRequestArgs(m *Method, trailingComma bool) string {
 	return fmt.Sprintf("req *%s,", m.RequestType)
 }
 
+func buildReqInitFunc(m *Method) string {
+	if !m.RequestExtendArgs {
+		return fmt.Sprintf("new(%s)", m.RequestType)
+	}
+
+	if len(m.ArgsType) == 1 {
+		return fmt.Sprintf("new(%s)", m.ArgsType[0])
+	} else {
+		res := "[]interface{}{"
+		for i, typ := range m.ArgsType {
+			res += fmt.Sprintf("new(%s)", typ)
+			if i != len(m.ArgsType)-1 {
+				res += ", "
+			}
+		}
+		res += "}"
+		return res
+	}
+}
+
 func buildReturnType(m *Method) string {
-	if m.ResponseExtendArgs {
+	if m.ResponseExtendArgs || m.ResponseIsWrapper {
 		return m.ReturnType
 	}
 	return "*" + m.ReturnType
