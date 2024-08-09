@@ -63,6 +63,7 @@ type Method struct {
 	ArgsName          []string
 
 	ResponseExtendArgs bool
+	ResponseIsWrapper  bool
 	ReturnType         string
 }
 
@@ -99,6 +100,12 @@ func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File) (*Dubbogo,
 				m.RequestExtendArgs = true
 				for _, field := range method.Input.Fields {
 					goType, _ := util.FieldGoType(g, field)
+
+					opt, ok := proto.GetExtension(field.Desc.Options(), unified_idl_extend.E_FieldExtend).(*unified_idl_extend.Hessian2FieldOptions)
+					if ok && opt != nil && opt.IsWrapper && goType != "bool" {
+						goType = "*" + goType
+					}
+
 					m.ArgsType = append(m.ArgsType, goType)
 					m.ArgsName = append(m.ArgsName, util.ToLower(field.GoName))
 				}
@@ -113,7 +120,16 @@ func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File) (*Dubbogo,
 				if len(method.Output.Fields) != 1 {
 					return nil, ErrMoreExtendArgsRespFieldNum
 				}
-				goType, _ := util.FieldGoType(g, method.Output.Fields[0])
+
+				field := method.Output.Fields[0]
+				goType, _ := util.FieldGoType(g, field)
+
+				opt, ok := proto.GetExtension(field.Desc.Options(), unified_idl_extend.E_FieldExtend).(*unified_idl_extend.Hessian2FieldOptions)
+				if ok && opt != nil && opt.IsWrapper {
+					goType = "*" + goType
+					m.ResponseIsWrapper = true
+				}
+
 				m.ReturnType = goType
 			}
 
