@@ -19,17 +19,12 @@ package generator
 
 import (
 	"fmt"
-)
 
-import (
+	"github.com/dubbogo/protoc-gen-go-dubbo/proto/unified_idl_extend"
+	"github.com/dubbogo/protoc-gen-go-dubbo/util"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/proto"
-)
-
-import (
-	"github.com/dubbogo/protoc-gen-go-dubbo/proto/unified_idl_extend"
-	"github.com/dubbogo/protoc-gen-go-dubbo/util"
 )
 
 var (
@@ -66,7 +61,7 @@ type Method struct {
 	ReturnType         string
 }
 
-func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File) (*Dubbogo, error) {
+func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File, protocolSpecFlag bool) (*Dubbogo, error) {
 	desc := file.Proto
 	dubboGo := &Dubbogo{
 		File:         file,
@@ -77,6 +72,7 @@ func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File) (*Dubbogo,
 
 	for _, service := range file.Services {
 		serviceMethods := make([]*Method, 0)
+		skipServiceFlag := false
 		for _, method := range service.Methods {
 			if method.Desc.IsStreamingClient() || method.Desc.IsStreamingServer() {
 				return nil, ErrStreamMethod
@@ -87,7 +83,18 @@ func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File) (*Dubbogo,
 				ReturnType:  g.QualifiedGoIdent(method.Output.GoIdent),
 			}
 
+			protocolOpt, ok := proto.GetExtension(method.Desc.Options(), unified_idl_extend.E_MethodProtocol).(*unified_idl_extend.ProtocolTypeOption)
+			if protocolSpecFlag {
+				if (ok && protocolOpt.GetProtocolName() != unified_idl_extend.ProtocolType_DUBBO.String()) || protocolOpt == nil {
+					// skip the method which is not dubbo protocol or does not have a method option
+					skipServiceFlag = true
+					continue
+				}
+			}
+			skipServiceFlag = false
+
 			methodOpt, ok := proto.GetExtension(method.Desc.Options(), unified_idl_extend.E_MethodExtend).(*unified_idl_extend.Hessian2MethodOptions)
+
 			invokeName := util.ToLower(method.GoName)
 			if ok && methodOpt != nil {
 				invokeName = methodOpt.MethodName
@@ -116,8 +123,12 @@ func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File) (*Dubbogo,
 				goType, _ := util.FieldGoType(g, method.Output.Fields[0])
 				m.ReturnType = goType
 			}
-
-			serviceMethods = append(serviceMethods, m)
+			if !skipServiceFlag {
+				serviceMethods = append(serviceMethods, m)
+			}
+		}
+		if len(serviceMethods) == 0 {
+			continue
 		}
 
 		serviceOpt, ok := proto.GetExtension(service.Desc.Options(), unified_idl_extend.E_ServiceExtend).(*unified_idl_extend.Hessian2ServiceOptions)
@@ -130,6 +141,10 @@ func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File) (*Dubbogo,
 			Methods:       serviceMethods,
 			InterfaceName: interfaceName,
 		})
+	}
+
+	if len(dubboGo.Services) == 0 {
+		return nil, fmt.Errorf("no service found in %s", dubboGo.Source)
 	}
 
 	return dubboGo, nil
