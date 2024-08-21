@@ -83,9 +83,16 @@ func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File, protocolSp
 				ReturnType:  g.QualifiedGoIdent(method.Output.GoIdent),
 			}
 
-			protocolOpt, ok := proto.GetExtension(method.Desc.Options(), unified_idl_extend.E_MethodProtocol).(*unified_idl_extend.ProtocolTypeOption)
-			if protocolSpecFlag {
-				if (ok && protocolOpt.GetProtocolName() != unified_idl_extend.ProtocolType_DUBBO.String()) || protocolOpt == nil {
+			protocolOpt, ok := proto.GetExtension(method.Desc.Options(), unified_idl_extend.E_MethodProtocols).(*unified_idl_extend.MethodProtocolTypeOption)
+			if protocolSpecFlag && ok {
+				flagDubboProtocol := false
+				for _, protoName := range protocolOpt.GetProtocolNames() {
+					if protoName == unified_idl_extend.ProtocolType_DUBBO.String() {
+						flagDubboProtocol = true
+						break
+					}
+				}
+				if !flagDubboProtocol || protocolOpt == nil {
 					// skip the method which is not dubbo protocol or does not have a method option
 					skipServiceFlag = true
 					continue

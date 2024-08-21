@@ -28,7 +28,11 @@ enum ProtocolType {
   TRIPLE = 1;
 }
 
-message ProtocolTypeOption {
+message MethodProtocolTypeOption {
+  repeated string protocol_names = 1;
+}
+
+message ServiceProtocolTypeOption{
   string protocol_name = 1;
 }
 
@@ -49,7 +53,7 @@ message Hessian2MethodOptions {
 
 extend google.protobuf.MethodOptions {
   optional Hessian2MethodOptions method_extend = 12345;
-  optional ProtocolTypeOption method_protocol = 12346;
+  optional MethodProtocolTypeOption method_protocols = 12346;
 }
 
 message Hessian2ServiceOptions {
@@ -59,7 +63,7 @@ message Hessian2ServiceOptions {
 
 extend google.protobuf.ServiceOptions {
   optional Hessian2ServiceOptions service_extend = 12345;
-  optional ProtocolTypeOption service_protocol = 12346;
+  optional ServiceProtocolTypeOption service_protocol = 12346;
 }
 
 message Hessian2EnumOptions {
