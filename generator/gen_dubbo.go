@@ -61,7 +61,7 @@ type Method struct {
 	ReturnType         string
 }
 
-func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File, protocolSpecFlag bool) (*Dubbogo, error) {
+func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File, methodProtocolSpecFlag, serviceProtocolSpecFlag bool) (*Dubbogo, error) {
 	desc := file.Proto
 	dubboGo := &Dubbogo{
 		File:         file,
@@ -71,8 +71,15 @@ func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File, protocolSp
 	}
 
 	for _, service := range file.Services {
+		serviceProtocolOpt, ok := proto.GetExtension(service.Desc.Options(), unified_idl_extend.E_ServiceProtocol).(*unified_idl_extend.ServiceProtocolTypeOption)
+		if serviceProtocolSpecFlag && ok {
+			if serviceProtocolOpt.GetProtocolName() != unified_idl_extend.ProtocolType_DUBBO.String() || serviceProtocolOpt == nil {
+				// skip the service which is not dubbo protocol or does not have a service option
+				continue
+			}
+		}
 		serviceMethods := make([]*Method, 0)
-		skipServiceFlag := false
+		skipMethodFlag := false
 		for _, method := range service.Methods {
 			if method.Desc.IsStreamingClient() || method.Desc.IsStreamingServer() {
 				return nil, ErrStreamMethod
@@ -83,22 +90,22 @@ func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File, protocolSp
 				ReturnType:  g.QualifiedGoIdent(method.Output.GoIdent),
 			}
 
-			protocolOpt, ok := proto.GetExtension(method.Desc.Options(), unified_idl_extend.E_MethodProtocols).(*unified_idl_extend.MethodProtocolTypeOption)
-			if protocolSpecFlag && ok {
+			methodProtocolOpt, ok := proto.GetExtension(method.Desc.Options(), unified_idl_extend.E_MethodProtocols).(*unified_idl_extend.MethodProtocolTypeOption)
+			if methodProtocolSpecFlag && ok {
 				flagDubboProtocol := false
-				for _, protoName := range protocolOpt.GetProtocolNames() {
+				for _, protoName := range methodProtocolOpt.GetProtocolNames() {
 					if protoName == unified_idl_extend.ProtocolType_DUBBO.String() {
 						flagDubboProtocol = true
 						break
 					}
 				}
-				if !flagDubboProtocol || protocolOpt == nil {
+				if !flagDubboProtocol || methodProtocolOpt == nil {
 					// skip the method which is not dubbo protocol or does not have a method option
-					skipServiceFlag = true
+					skipMethodFlag = true
 					continue
 				}
 			}
-			skipServiceFlag = false
+			skipMethodFlag = false
 
 			methodOpt, ok := proto.GetExtension(method.Desc.Options(), unified_idl_extend.E_MethodExtend).(*unified_idl_extend.Hessian2MethodOptions)
 
@@ -130,7 +137,7 @@ func ProcessProtoFile(g *protogen.GeneratedFile, file *protogen.File, protocolSp
 				goType, _ := util.FieldGoType(g, method.Output.Fields[0])
 				m.ReturnType = goType
 			}
-			if !skipServiceFlag {
+			if !skipMethodFlag {
 				serviceMethods = append(serviceMethods, m)
 			}
 		}

@@ -35,8 +35,8 @@ const (
 func main() {
 
 	var flags flag.FlagSet
-	protocolSpecFlag := flags.Bool("in_file_protocol_option", false, "enable the in-file transport protocol option")
-
+	methodProtocolSpecFlag := flags.Bool("in_file_method_protocol_spec", false, "enable the in-file method transport protocol option")
+	serviceProtocolSpecFlag := flags.Bool("in_file_service_protocol_spec", false, "enable the in-file service transport protocol option")
 	if len(os.Args) == 2 && os.Args[1] == "--version" {
 		fmt.Fprintln(os.Stdout, version.Version)
 		os.Exit(0)
@@ -60,7 +60,10 @@ func main() {
 			if file.Generate {
 				filename := file.GeneratedFilenamePrefix + ".dubbo.go"
 				g := gen.NewGeneratedFile(filename, file.GoImportPath)
-				dubboGo, err := generator.ProcessProtoFile(g, file, *protocolSpecFlag)
+				if *methodProtocolSpecFlag && *serviceProtocolSpecFlag {
+					return fmt.Errorf("in_file_method_protocol_spec and in_file_service_protocol_spec can't be true at the same time")
+				}
+				dubboGo, err := generator.ProcessProtoFile(g, file, *methodProtocolSpecFlag, *serviceProtocolSpecFlag)
 				if err != nil {
 					return err
 				}
