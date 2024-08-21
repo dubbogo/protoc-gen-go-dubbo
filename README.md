@@ -28,6 +28,15 @@ protoc -I ./ \
 The `--go-dubbo_out` option specifies the output directory for the generated code,
 and `--go-dubbo_opt=paths=source_relative` sets the output path to be relative to the source file.
 
+You can also use the flags `in_file_method_protocol_spec=true` or `in_file_method_protocol_spec=true` to enable in-file transport protocol specification, then protoc-gen-go-dubbo will only generate the service/method with the option "DUBBO". For example:
+
+```shell
+protoc -I ./ \
+  --go-hessian2_out=./ --go-hessian2_opt=paths=source_relative \
+  --go-dubbo_out=./ --go-dubbo_opt=paths=source_relative,in_file_method_protocol_spec=true \
+  ./greet.proto
+```
+
 ## Example
 To generate Dubbo code, you can create a `.proto` file with the following content:
 ```protobuf
@@ -63,6 +72,50 @@ service GreetService {
   }
 }
 ```
+
+Extra options with transport protocol specification look like the follows:
+
+```proto
+//method protocol spec
+service GreetingsService  {
+  rpc Greet(GreetRequest) returns (GreetResponse) {
+    option (unified_idl_extend.method_protocols) = {
+      protocol_names: ["DUBBO"];
+    };
+    option (unified_idl_extend.method_extend) = {
+      method_name: "greet";
+    };
+  }
+  rpc Greet2(GreetRequest) returns (GreetResponse) {
+    option (unified_idl_extend.method_protocols) = {
+      protocol_names: ["TRIPLE","DUBBO"];
+    };
+    option (unified_idl_extend.method_extend) = {
+      method_name: "greet2";
+    };
+  }
+}
+```
+
+```proto
+service GreetingsService  {
+//service protocol spec
+option (unified_idl_extend.service_protocol) = {
+    protocol_name: "DUBBO";
+  };
+  rpc Greet(GreetRequest) returns (GreetResponse) {
+    option (unified_idl_extend.method_extend) = {
+      method_name: "greet";
+    };
+  }
+  rpc Greet2(GreetRequest) returns (GreetResponse) {
+    option (unified_idl_extend.method_extend) = {
+      method_name: "greet2";
+    };
+  }
+}
+```
+
 Note that you need to import the `unified_idl_extend` package to use the `method_extend` options to extend the service.
 And Dubbo protocol must be used with Hessian2 serialization, so you need to use the `message_extend` options to extend 
 the message.
