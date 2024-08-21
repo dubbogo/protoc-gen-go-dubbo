@@ -23,6 +23,19 @@ option go_package = "github.com/dubbogo/protoc-gen-go-dubbo/proto/unified_idl_ex
 
 import "google/protobuf/descriptor.proto";
 
+enum ProtocolType {
+  DUBBO = 0;
+  TRIPLE = 1;
+}
+
+message MethodProtocolTypeOption {
+  repeated string protocol_names = 1;
+}
+
+message ServiceProtocolTypeOption{
+  string protocol_name = 1;
+}
+
 message Hessian2MessageOptions {
   string java_class_name = 1;
   string reference_path = 2;
@@ -40,14 +53,17 @@ message Hessian2MethodOptions {
 
 extend google.protobuf.MethodOptions {
   optional Hessian2MethodOptions method_extend = 12345;
+  optional MethodProtocolTypeOption method_protocols = 12346;
 }
 
 message Hessian2ServiceOptions {
   string interface_name = 1;
+
 }
 
 extend google.protobuf.ServiceOptions {
   optional Hessian2ServiceOptions service_extend = 12345;
+  optional ServiceProtocolTypeOption service_protocol = 12346;
 }
 
 message Hessian2EnumOptions {
